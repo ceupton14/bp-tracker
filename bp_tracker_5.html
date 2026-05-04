@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blood Pressure Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;1,700&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --cream:    #faf7f2;
+  --cream2:   #f3efe6;
+  --cream3:   #ece7db;
+  --white:    #ffffff;
+  --green:    #2f5c28;
+  --green2:   #3d7535;
+  --green-lt: #edf2eb;
+  --terra:    #c4501c;
+  --terra-lt: #fdf0eb;
+  --text:     #1c1a16;
+  --muted:    #7a7163;
+  --border:   #ddd8cc;
+  --shadow:   0 2px 16px rgba(50,40,20,0.09);
+  --shadow-sm:0 1px 6px rgba(50,40,20,0.07);
+  --normal:   #2f6b3a;
+  --elevated: #a06b10;
+  --stage1:   #b84a20;
+  --stage2:   #9a1c1c;
+  --crisis:   #6b0000;
+  --serif: 'Playfair Display', Georgia, serif;
+  --sans:  'Nunito Sans', system-ui, sans-serif;
+  --radius: 16px;
+}
+
+body { background: var(--cream); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.5; min-height: 100vh; }
+
+/* NAV */
+.topbar { background: var(--green); padding: 0 32px; display: flex; align-items: center; justify-content: space-between; height: 56px; }
+.topbar-brand { font-family: var(--serif); font-size: 1.25rem; color: #fff; }
+.topbar-brand em { font-style: italic; color: #b8d4a8; }
+.tab-nav { display: flex; }
+.tnav { padding: 0 20px; height: 56px; display: flex; align-items: center; font-weight: 700; font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255,255,255,0.6); cursor: pointer; border-bottom: 3px solid transparent; transition: color 0.15s, border-color 0.15s; margin-bottom: -1px; }
+.tnav:hover { color: #fff; }
+.tnav.active { color: #fff; border-bottom-color: #b8d4a8; }
+
+.page { padding: 40px 32px; max-width: 1140px; margin: 0 auto; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* HERO */
+.hero { background: var(--green2); border-radius: var(--radius); padding: 32px 36px; margin-bottom: 32px; display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.hero-title { font-family: var(--serif); font-size: 2.2rem; font-weight: 800; color: #fff; line-height: 1.1; letter-spacing: -0.02em; }
+.hero-title em { color: #b8d4a8; font-style: italic; }
+.hero-sub { font-size: 0.82rem; color: rgba(255,255,255,0.6); letter-spacing: 0.06em; text-transform: uppercase; margin-top: 6px; }
+
+/* GRID */
+.grid { display: grid; grid-template-columns: 360px 1fr; gap: 24px; }
+@media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+
+/* CARD */
+.card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; box-shadow: var(--shadow-sm); }
+.card + .card { margin-top: 20px; }
+.card-label { font-weight: 700; font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
+.card-label::before { content:''; display:block; width:20px; height:3px; background:var(--terra); border-radius:2px; }
+
+/* LIVE PREVIEW */
+.live-preview { background: var(--cream); border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 20px; display: none; border: 1px solid var(--cream3); }
+.live-numbers { font-family: var(--serif); font-size: 3.2rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; color: var(--green); }
+.live-numbers span { color: var(--muted); font-size: 2rem; margin: 0 6px; }
+.live-pulse { color: var(--muted); font-size: 0.82rem; margin-top: 6px; }
+.cls-pill { display: inline-block; padding: 5px 16px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 10px; }
+
+/* FORM */
+.form-row { display: grid; gap: 14px; margin-bottom: 14px; }
+.fr-3 { grid-template-columns: 1fr 1fr 1fr; }
+.fr-2 { grid-template-columns: 1fr 1fr; }
+.fr-1 { grid-template-columns: 1fr; }
+.fg { display: flex; flex-direction: column; gap: 5px; }
+label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+input, select, textarea {
+  background: var(--cream); border: 1.5px solid var(--border); border-radius: 10px;
+  color: var(--text); font-family: var(--sans); font-size: 1rem; font-weight: 600;
+  padding: 11px 14px; outline: none; transition: border-color 0.15s, background 0.15s; width: 100%;
+  -moz-appearance: textfield;
+}
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+input:focus, select:focus, textarea:focus { border-color: var(--green2); background: var(--white); }
+textarea { resize: vertical; min-height: 58px; font-size: 0.88rem; font-weight: 400; }
+
+/* BUTTONS */
+.btn-primary { width:100%; padding:14px; background:var(--terra); color:#fff; border:none; border-radius:10px; font-family:var(--sans); font-weight:700; font-size:0.92rem; letter-spacing:0.04em; cursor:pointer; margin-top:16px; transition:background 0.15s,transform 0.1s,box-shadow 0.15s; box-shadow:0 3px 10px rgba(196,80,28,0.28); }
+.btn-primary:hover { background:#a83e12; transform:translateY(-1px); box-shadow:0 5px 16px rgba(196,80,28,0.34); }
+.btn-primary:active { transform:translateY(0); }
+.btn-outline { background:transparent; border:1.5px solid var(--border); border-radius:10px; color:var(--muted); font-family:var(--sans); font-size:0.82rem; font-weight:600; padding:9px 18px; cursor:pointer; transition:border-color 0.15s,color 0.15s; }
+.btn-outline:hover { border-color:var(--green2); color:var(--green); }
+.btn-ghost-green { width:100%; background:var(--green-lt); border:1.5px solid #c0d4ba; border-radius:10px; color:var(--green); font-family:var(--sans); font-size:0.84rem; font-weight:700; padding:11px; cursor:pointer; margin-top:10px; transition:background 0.15s; }
+.btn-ghost-green:hover { background:#d8e8d4; }
+.btn-del { background:transparent; border:1.5px solid #e8c4ba; border-radius:8px; color:var(--stage2); font-family:var(--sans); font-size:0.65rem; font-weight:700; padding:4px 10px; cursor:pointer; }
+
+/* STATS */
+.stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+@media (max-width:600px){.stats-row{grid-template-columns:repeat(2,1fr);}}
+.stat-tile { background:var(--cream); border:1px solid var(--cream3); border-radius:14px; padding:18px 14px; text-align:center; }
+.stat-num { font-family:var(--serif); font-size:2rem; font-weight:800; line-height:1; letter-spacing:-0.02em; }
+.stat-lbl { font-size:0.62rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; margin-top:4px; font-weight:700; }
+
+.chart-wrap { position:relative; height:250px; }
+
+/* TABLE */
+.tbl-wrap { max-height:300px; overflow-y:auto; border-radius:10px; border:1px solid var(--border); }
+.tbl-wrap::-webkit-scrollbar { width:4px; }
+.tbl-wrap::-webkit-scrollbar-thumb { background:var(--cream3); border-radius:2px; }
+table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+thead th { font-size:0.65rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); text-align:left; padding:10px 14px; background:var(--cream); border-bottom:1px solid var(--border); position:sticky; top:0; }
+tbody tr { border-bottom:1px solid #f0ece4; transition:background 0.1s; }
+tbody tr:last-child { border-bottom:none; }
+tbody tr:hover { background:var(--cream); }
+tbody td { padding:11px 14px; vertical-align:middle; }
+.td-bp { font-weight:700; font-size:0.92rem; color:var(--green); }
+.empty { text-align:center; color:var(--muted); padding:48px; font-size:0.85rem; }
+
+.badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:0.65rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; }
+
+/* CLASSIFY GUIDE */
+.cls-guide { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:14px; }
+.cls-tile { border-radius:12px; padding:12px 8px; text-align:center; }
+.cls-dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-bottom:4px; }
+.cls-name { font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; }
+.cls-vals { font-size:0.68rem; margin-top:3px; opacity:0.8; }
+
+/* SYNC */
+.sync-row { display:flex; align-items:center; gap:7px; font-size:0.72rem; color:var(--muted); margin-top:10px; min-height:22px; }
+.sdot { width:7px; height:7px; border-radius:50%; background:var(--border); flex-shrink:0; }
+.sdot.ok { background:var(--normal); }
+.sdot.err { background:var(--stage2); }
+.sdot.go { background:var(--elevated); animation:pulse 1s infinite; }
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+
+.action-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+.right-col { display:flex; flex-direction:column; gap:22px; }
+
+/* ======================================================
+   FEEDBACK MODAL
+   ====================================================== */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(28,26,22,0.55);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s;
+  padding: 20px;
+}
+.modal-overlay.show { opacity: 1; pointer-events: all; }
+
+.modal {
+  background: var(--white);
+  border-radius: 24px;
+  width: 100%;
+  max-width: 520px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(28,26,22,0.25);
+  transform: translateY(20px) scale(0.97);
+  transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+.modal-overlay.show .modal { transform: translateY(0) scale(1); }
+
+.modal-header {
+  padding: 32px 32px 0;
+  text-align: center;
+}
+
+.modal-emoji {
+  font-size: 3rem;
+  line-height: 1;
+  margin-bottom: 10px;
+}
+
+.modal-stage {
+  display: inline-block;
+  padding: 6px 18px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+.modal-reading {
+  font-family: var(--serif);
+  font-size: 2.8rem;
+  font-weight: 800;
+  color: var(--green);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.modal-reading span { color: var(--muted); font-size: 1.8rem; margin: 0 6px; }
+.modal-pulse { color: var(--muted); font-size: 0.85rem; margin-top: 6px; }
+
+.modal-body { padding: 24px 32px; }
+
+.modal-message {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.12rem;
+  line-height: 1.55;
+  color: var(--text);
+  text-align: center;
+  min-height: 60px;
+}
+
+.modal-message.loading {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-style: normal;
+}
+
+.loading-dots::after {
+  content: '';
+  animation: dots 1.4s infinite;
+}
+@keyframes dots {
+  0%   { content: '.'; }
+  33%  { content: '..'; }
+  66%  { content: '...'; }
+  100% { content: ''; }
+}
+
+/* TREND STRIP */
+.trend-strip {
+  background: var(--cream);
+  border: 1px solid var(--cream3);
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  text-align: center;
+}
+
+.trend-item-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.trend-item-val {
+  font-family: var(--serif);
+  font-size: 1.4rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.trend-item-arrow {
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-top: 3px;
+}
+
+.trend-divider { border-left: 1px solid var(--border); }
+
+.modal-footer { padding: 0 32px 28px; }
+
+.btn-modal-close {
+  width: 100%;
+  padding: 14px;
+  background: var(--green2);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.btn-modal-close:hover { background: var(--green); transform: translateY(-1px); }
+
+/* SETTINGS & SETUP (unchanged structure) */
+.sw { max-width:680px; margin:0 auto; display:flex; flex-direction:column; gap:22px; }
+.s-label { font-family:var(--serif); font-size:1.05rem; font-weight:700; color:var(--text); margin-bottom:6px; }
+.s-hint { font-size:0.78rem; color:var(--muted); line-height:1.6; margin-bottom:10px; }
+.gw { max-width:720px; margin:0 auto; display:flex; flex-direction:column; gap:24px; }
+.step-row { display:flex; gap:18px; align-items:flex-start; }
+.step-badge { width:36px; height:36px; border-radius:50%; background:var(--terra); color:#fff; font-family:var(--serif); font-weight:800; font-size:1rem; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 2px 8px rgba(196,80,28,0.3); }
+.step-body { flex:1; }
+.step-h { font-family:var(--serif); font-size:1.05rem; font-weight:700; margin-bottom:6px; color:var(--text); }
+.step-p { font-size:0.8rem; color:var(--muted); line-height:1.7; }
+.step-p a { color:var(--terra); text-decoration:none; }
+.step-p a:hover { text-decoration:underline; }
+.step-p code { background:var(--cream2); padding:2px 7px; border-radius:5px; font-size:0.76rem; color:var(--green); }
+.divider { border:none; border-top:1px solid var(--border); }
+.code-block { background:#1e1a14; color:#c8d8b8; border-radius:12px; padding:20px; font-size:0.75rem; line-height:1.7; overflow-x:auto; margin-top:12px; white-space:pre; position:relative; font-family:'DM Mono','Fira Mono',monospace; }
+.copy-btn { position:absolute; top:12px; right:12px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.7); padding:4px 12px; border-radius:6px; font-size:0.65rem; cursor:pointer; font-family:var(--sans); }
+.copy-btn:hover { background:rgba(255,255,255,0.18); color:#fff; }
+.info-box { background:var(--green-lt); border:1.5px solid #c0d4ba; border-radius:12px; padding:16px 20px; font-size:0.8rem; color:var(--green); line-height:1.6; }
+.section-title { font-family:var(--serif); font-size:1.5rem; font-weight:800; color:var(--text); margin-bottom:20px; padding-bottom:12px; border-bottom:2px solid var(--terra); display:inline-block; }
+
+/* GITHUB GUIDE specific */
+.gh-step { display:flex; gap:16px; align-items:flex-start; }
+.gh-num { width:32px; height:32px; border-radius:50%; background:var(--cream2); border:2px solid var(--terra); color:var(--terra); font-family:var(--serif); font-weight:800; font-size:0.9rem; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.gh-body { flex:1; padding-top:4px; }
+.gh-title { font-weight:700; font-size:0.92rem; color:var(--text); margin-bottom:4px; }
+.gh-detail { font-size:0.78rem; color:var(--muted); line-height:1.7; }
+.gh-detail code { background:var(--cream2); padding:2px 7px; border-radius:5px; font-size:0.74rem; color:var(--green); font-family:monospace; }
+.gh-detail strong { color:var(--text); }
+.tip-box { background:var(--terra-lt); border:1.5px solid #f0c4a8; border-radius:12px; padding:14px 18px; font-size:0.78rem; color:var(--terra); line-height:1.6; }
+</style>
+</head>
+<body>
+
+<!-- FEEDBACK MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-emoji" id="modalEmoji">🎉</div>
+      <div>
+        <span class="modal-stage" id="modalStage"></span>
+      </div>
+      <div class="modal-reading" id="modalReading">— <span>/</span> —</div>
+      <div class="modal-pulse" id="modalPulse"></div>
+    </div>
+    <div class="modal-body">
+      <div class="modal-message" id="modalMsg"></div>
+      <div class="trend-strip" id="trendStrip">
+        <div>
+          <div class="trend-item-label">7-day avg sys</div>
+          <div class="trend-item-val" id="t7sys" style="color:var(--green)">—</div>
+          <div class="trend-item-arrow" id="t7sysArr"></div>
+        </div>
+        <div class="trend-divider">
+          <div class="trend-item-label">7-day avg dia</div>
+          <div class="trend-item-val" id="t7dia" style="color:var(--terra)">—</div>
+          <div class="trend-item-arrow" id="t7diaArr"></div>
+        </div>
+        <div class="trend-divider">
+          <div class="trend-item-label">Readings this week</div>
+          <div class="trend-item-val" id="t7count" style="color:var(--muted)">—</div>
+          <div class="trend-item-arrow" style="color:var(--muted);font-size:0.65rem">last 7 days</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-modal-close" onclick="closeModal()">Got it, thanks!</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOP NAV -->
+<div class="topbar">
+  <div class="topbar-brand"><em>bp</em> tracker</div>
+  <div class="tab-nav">
+    <div class="tnav active" onclick="switchTab('tracker')">Tracker</div>
+    <div class="tnav" onclick="switchTab('settings')">Settings</div>
+    <div class="tnav" onclick="switchTab('setup')">Setup Guide</div>
+    <div class="tnav" onclick="switchTab('github')">GitHub Guide</div>
+  </div>
+</div>
+
+<!-- ===================== TRACKER ===================== -->
+<div id="tab-tracker" class="tab-panel active">
+<div class="page">
+  <div class="hero">
+    <div>
+      <div class="hero-title">Your blood<br><em>pressure log</em></div>
+      <div class="hero-sub">Track, trend &amp; share with your GP</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-family:var(--serif);font-size:2.4rem;font-weight:800;color:#fff;line-height:1" id="heroReading">—</div>
+      <div style="font-size:0.72rem;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px">Latest reading</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <div class="card-label">New Reading</div>
+        <div class="live-preview" id="livePreview">
+          <div class="live-numbers" id="liveNums">— <span>/</span> —</div>
+          <div class="live-pulse" id="livePulse"></div>
+          <div id="liveCls"></div>
+        </div>
+
+        <div class="form-row fr-3">
+          <div class="fg"><label>Systolic</label><input type="number" id="sys" placeholder="120" min="60" max="250" step="1" inputmode="numeric" oninput="updateLive()"></div>
+          <div class="fg"><label>Diastolic</label><input type="number" id="dia" placeholder="80" min="40" max="150" step="1" inputmode="numeric" oninput="updateLive()"></div>
+          <div class="fg"><label>Pulse (bpm)</label><input type="number" id="pulse" placeholder="72" min="30" max="220" step="1" inputmode="numeric" oninput="updateLive()"></div>
+        </div>
+        <div class="form-row fr-1">
+          <div class="fg"><label>Date &amp; Time</label><input type="datetime-local" id="ts"></div>
+        </div>
+        <div class="form-row fr-2">
+          <div class="fg"><label>Arm</label><select id="arm"><option>Left</option><option>Right</option></select></div>
+          <div class="fg"><label>Position</label><select id="pos"><option>Sitting</option><option>Standing</option><option>Lying</option></select></div>
+        </div>
+        <div class="form-row fr-1">
+          <div class="fg"><label>Notes (optional)</label><textarea id="notes" placeholder="e.g. after exercise, medication taken…"></textarea></div>
+        </div>
+
+        <button class="btn-primary" onclick="addReading()">+ Add reading</button>
+        <div class="sync-row" id="syncStatus"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Classification guide</div>
+        <div class="cls-guide">
+          <div class="cls-tile" style="background:rgba(47,107,58,0.1)"><div class="cls-dot" style="background:var(--normal)"></div><div class="cls-name" style="color:var(--normal)">Normal</div><div class="cls-vals" style="color:var(--normal)">&lt;120 / &lt;80</div></div>
+          <div class="cls-tile" style="background:rgba(160,107,16,0.1)"><div class="cls-dot" style="background:var(--elevated)"></div><div class="cls-name" style="color:var(--elevated)">Elevated</div><div class="cls-vals" style="color:var(--elevated)">120–129 / &lt;80</div></div>
+          <div class="cls-tile" style="background:rgba(184,74,32,0.1)"><div class="cls-dot" style="background:var(--stage1)"></div><div class="cls-name" style="color:var(--stage1)">Stage 1</div><div class="cls-vals" style="color:var(--stage1)">130–139 / 80–89</div></div>
+          <div class="cls-tile" style="background:rgba(154,28,28,0.1)"><div class="cls-dot" style="background:var(--stage2)"></div><div class="cls-name" style="color:var(--stage2)">Stage 2</div><div class="cls-vals" style="color:var(--stage2)">≥140 / ≥90</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="right-col">
+      <div class="card">
+        <div class="card-label">30-day averages</div>
+        <div class="stats-row">
+          <div class="stat-tile"><div class="stat-num" id="avgSys" style="color:var(--green)">—</div><div class="stat-lbl">Avg Systolic</div></div>
+          <div class="stat-tile"><div class="stat-num" id="avgDia" style="color:var(--green)">—</div><div class="stat-lbl">Avg Diastolic</div></div>
+          <div class="stat-tile"><div class="stat-num" id="avgPulse" style="color:var(--elevated)">—</div><div class="stat-lbl">Avg Pulse</div></div>
+          <div class="stat-tile"><div class="stat-num" id="totalCt" style="color:var(--muted)">0</div><div class="stat-lbl">Total</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">Trend — last 30 readings</div>
+        <div class="chart-wrap"><canvas id="bpChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Reading history</div>
+        <div class="action-row">
+          <button class="btn-outline" onclick="exportCSV()">Export CSV</button>
+          <button class="btn-outline" onclick="importCSV()">Import CSV</button>
+          <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="handleImport(event)">
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Date / Time</th><th>BP</th><th>Pulse</th><th>Status</th><th>Arm</th><th>Notes</th><th></th></tr></thead>
+            <tbody id="histBody"><tr><td colspan="7" class="empty">No readings yet. Add your first above.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ===================== SETTINGS ===================== -->
+<div id="tab-settings" class="tab-panel">
+<div class="page"><div class="sw">
+  <div class="card">
+    <div class="card-label">Google Sheets Sync</div>
+    <div class="s-label">Apps Script Web App URL</div>
+    <div class="s-hint">Paste the URL from your deployed Apps Script. Every new reading posts to your sheet automatically. See the <span style="color:var(--terra);cursor:pointer;font-weight:700" onclick="switchTab('setup')">Setup Guide</span>.</div>
+    <input type="url" id="sheetsUrl" placeholder="https://script.google.com/macros/s/.../exec" oninput="saveSheetsUrl()">
+    <button class="btn-ghost-green" onclick="testConn()">Test connection</button>
+    <div class="sync-row" id="testStatus"></div>
+  </div>
+  <div class="card">
+    <div class="card-label">Your Name</div>
+    <div class="s-hint">Added to your sheet with each reading. Useful if sharing data with a GP or carer.</div>
+    <input type="text" id="dispName" placeholder="e.g. Chris Upton" oninput="saveDispName()">
+  </div>
+  <div class="card">
+    <div class="card-label">Target Reference Lines</div>
+    <div class="s-hint">Shown as dashed lines on the trend chart.</div>
+    <div class="form-row fr-3">
+      <div class="fg"><label>Target Systolic</label><input type="number" id="refSys" placeholder="129" oninput="saveRefs()"></div>
+      <div class="fg"><label>Target Diastolic</label><input type="number" id="refDia" placeholder="85" oninput="saveRefs()"></div>
+      <div class="fg"><label>Target Pulse</label><input type="number" id="refPulse" placeholder="75" oninput="saveRefs()"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-label">Data Management</div>
+    <div class="s-hint" style="margin-bottom:14px">All readings are stored locally in this browser. Export a CSV regularly as your backup.</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button class="btn-outline" onclick="exportCSV()">Export all as CSV</button>
+      <button class="btn-outline" style="color:var(--stage2);border-color:#e8c4ba" onclick="clearAll()">Clear all readings</button>
+    </div>
+  </div>
+</div></div>
+</div>
+
+<!-- ===================== SETUP GUIDE ===================== -->
+<div id="tab-setup" class="tab-panel">
+<div class="page"><div class="gw">
+  <div class="info-box">This guide covers Google Sheets auto-sync. For hosting and sharing, see the <span style="color:var(--green);cursor:pointer;font-weight:700" onclick="switchTab('github')">GitHub Guide</span> tab.</div>
+  <div class="card">
+    <div class="section-title">Google Sheets Sync</div>
+    <div style="display:flex;flex-direction:column;gap:24px">
+      <div class="step-row">
+        <div class="step-badge">1</div>
+        <div class="step-body">
+          <div class="step-h">Add a Data tab to your spreadsheet</div>
+          <div class="step-p">Create a new tab called <code>Data</code>. Add this header row in row 1:<br><br><code>Name | Date | Time | Systolic | Diastolic | Pulse | Arm | Position | Classification | Notes</code></div>
+        </div>
+      </div>
+      <hr class="divider">
+      <div class="step-row">
+        <div class="step-badge">2</div>
+        <div class="step-body">
+          <div class="step-h">Open Apps Script and paste the receiver</div>
+          <div class="step-p">Go to <strong>Extensions → Apps Script</strong>. Delete existing code, paste this:</div>
+          <div class="code-block" id="asBlock"><button class="copy-btn" onclick="copyBlock('asBlock')">Copy</button>function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var sheet = SpreadsheetApp.getActiveSpreadsheet()
+                              .getSheetByName("Data");
+    sheet.appendRow([
+      data.name           || "",
+      data.date,  data.time,
+      data.sys,   data.dia,
+      data.pulse          || "",
+      data.arm,   data.position,
+      data.classification,
+      data.notes          || ""
+    ]);
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: true }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: false, error: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}</div>
+        </div>
+      </div>
+      <hr class="divider">
+      <div class="step-row">
+        <div class="step-badge">3</div>
+        <div class="step-body">
+          <div class="step-h">Deploy as a Web App</div>
+          <div class="step-p"><strong>Deploy → New deployment → Web app</strong><br>Execute as: <strong>Me</strong> · Access: <strong>Anyone</strong><br>Copy the Web app URL (starts with <code>https://script.google.com/macros/s/</code>)</div>
+        </div>
+      </div>
+      <hr class="divider">
+      <div class="step-row">
+        <div class="step-badge">4</div>
+        <div class="step-body">
+          <div class="step-h">Paste into Settings and test</div>
+          <div class="step-p">Go to <span style="color:var(--terra);cursor:pointer;font-weight:700" onclick="switchTab('settings')">Settings</span>, paste the URL, click <strong>Test connection</strong>. Delete the test row from your sheet. Done.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></div>
+</div>
+
+<!-- ===================== GITHUB GUIDE ===================== -->
+<div id="tab-github" class="tab-panel">
+<div class="page"><div class="gw">
+
+  <div class="info-box">
+    You already have a GitHub account — great. This gets you from zero to a live shareable URL in about five minutes. No coding required.
+  </div>
+
+  <div class="card">
+    <div class="section-title">Part 1 — Create a Repository</div>
+    <div style="display:flex;flex-direction:column;gap:22px">
+
+      <div class="gh-step">
+        <div class="gh-num">1</div>
+        <div class="gh-body">
+          <div class="gh-title">Go to github.com and sign in</div>
+          <div class="gh-detail">Once in, click the <strong>+</strong> icon in the top-right corner of the page and choose <strong>New repository</strong>.</div>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="gh-step">
+        <div class="gh-num">2</div>
+        <div class="gh-body">
+          <div class="gh-title">Name the repository</div>
+          <div class="gh-detail">
+            In the <strong>Repository name</strong> field, type: <code>bp-tracker</code><br><br>
+            Leave the description blank. Make sure <strong>Public</strong> is selected (not Private — GitHub Pages only works on public repos for free accounts).<br><br>
+            Tick <strong>Add a README file</strong>. Then click <strong>Create repository</strong>.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Part 2 — Upload the File</div>
+    <div style="display:flex;flex-direction:column;gap:22px">
+
+      <div class="gh-step">
+        <div class="gh-num">3</div>
+        <div class="gh-body">
+          <div class="gh-title">Open your new repository</div>
+          <div class="gh-detail">After creating it you'll land on the repository page. You'll see a single file called <code>README.md</code>. That's fine — ignore it for now.</div>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="gh-step">
+        <div class="gh-num">4</div>
+        <div class="gh-body">
+          <div class="gh-title">Upload bp_tracker.html and rename it</div>
+          <div class="gh-detail">
+            Click <strong>Add file → Upload files</strong>.<br><br>
+            Drag your <code>bp_tracker.html</code> file onto the upload area, or click <strong>choose your files</strong> to browse to it.<br><br>
+            <strong>Important:</strong> After the upload box shows your file, scroll down to the <strong>Commit changes</strong> section and click <strong>Commit changes</strong>. Don't change anything else yet.
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="gh-step">
+        <div class="gh-num">5</div>
+        <div class="gh-body">
+          <div class="gh-title">Rename the file to index.html</div>
+          <div class="gh-detail">
+            Back on your repository page, click on <code>bp_tracker.html</code> to open it.<br><br>
+            Click the <strong>pencil icon</strong> (Edit this file) in the top right of the file view.<br><br>
+            At the very top, you'll see the filename in a text box. Change <code>bp_tracker.html</code> to <code>index.html</code>.<br><br>
+            Scroll down and click <strong>Commit changes</strong>.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Part 3 — Enable GitHub Pages</div>
+    <div style="display:flex;flex-direction:column;gap:22px">
+
+      <div class="gh-step">
+        <div class="gh-num">6</div>
+        <div class="gh-body">
+          <div class="gh-title">Go to repository Settings</div>
+          <div class="gh-detail">On your repository page, click the <strong>Settings</strong> tab (it has a gear icon). It's in the row of tabs near the top of the page — not the global account settings.</div>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="gh-step">
+        <div class="gh-num">7</div>
+        <div class="gh-body">
+          <div class="gh-title">Find Pages in the left sidebar</div>
+          <div class="gh-detail">In the left-hand menu, scroll down to <strong>Pages</strong> (under the "Code and automation" section) and click it.</div>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="gh-step">
+        <div class="gh-num">8</div>
+        <div class="gh-body">
+          <div class="gh-title">Set the source branch</div>
+          <div class="gh-detail">
+            Under <strong>Branch</strong>, click the dropdown that says <em>None</em> and select <strong>main</strong>.<br><br>
+            Leave the folder as <strong>/ (root)</strong>.<br><br>
+            Click <strong>Save</strong>.
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="gh-step">
+        <div class="gh-num">9</div>
+        <div class="gh-body">
+          <div class="gh-title">Wait about 60 seconds, then visit your URL</div>
+          <div class="gh-detail">
+            GitHub will build the site. After roughly a minute, refresh the Settings → Pages page and you'll see a green banner with your URL:<br><br>
+            <code>https://YOURUSERNAME.github.io/bp-tracker</code><br><br>
+            That's it. Share that link with anyone — they open it in any browser, immediately, no download needed.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Part 4 — Updating the App</div>
+    <div class="tip-box" style="margin-bottom:20px">
+      When I send you an updated version of the file, you don't need to redo any of this. Just upload the new file and rename it — the live URL stays the same.
+    </div>
+    <div style="display:flex;flex-direction:column;gap:22px">
+      <div class="gh-step">
+        <div class="gh-num">10</div>
+        <div class="gh-body">
+          <div class="gh-title">To update: delete the old file, upload the new one</div>
+          <div class="gh-detail">
+            On your repository page, click <code>index.html</code>.<br>
+            Click the <strong>three-dot menu</strong> (⋯) in the top right and choose <strong>Delete file</strong>. Commit the deletion.<br><br>
+            Then follow steps 4–5 again to upload and rename the new version. The live URL updates within about 30 seconds.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-box">
+    <strong>What about other people's data?</strong><br>
+    Each person who opens your link gets their own private copy of the app in their own browser. Your data and theirs never mix — there's no server, no database, no accounts. The URL is just a way to deliver the file. Everything else happens locally on their device.
+  </div>
+
+</div></div>
+</div>
+
+<script>
+const SK='bp_readings_v2', SET='bp_settings_v1';
+let readings=[], chart=null;
+let cfg={sheetsUrl:'',displayName:'',refSys:129,refDia:85,refPulse:75};
+try{const s=localStorage.getItem(SK);if(s)readings=JSON.parse(s);}catch(e){}
+try{const s=localStorage.getItem(SET);if(s)cfg={...cfg,...JSON.parse(s)};}catch(e){}
+const saveR=()=>{try{localStorage.setItem(SK,JSON.stringify(readings));}catch(e){}};
+const saveC=()=>{try{localStorage.setItem(SET,JSON.stringify(cfg));}catch(e){}};
+
+function switchTab(n){
+  const ns=['tracker','settings','setup','github'];
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tnav').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+n).classList.add('active');
+  document.querySelectorAll('.tnav')[ns.indexOf(n)].classList.add('active');
+}
+
+function classify(s,d){
+  if(s>=180||d>=120)return{label:'Hypertensive Crisis',emoji:'🚨',color:'#6b0000',bg:'rgba(107,0,0,0.1)'};
+  if(s>=140||d>=90) return{label:'Stage 2 HTN',emoji:'😬',color:'#9a1c1c',bg:'rgba(154,28,28,0.08)'};
+  if(s>=130||(d>=80&&d<90))return{label:'Stage 1 HTN',emoji:'🤔',color:'#b84a20',bg:'rgba(184,74,32,0.08)'};
+  if(s>=120&&s<=129&&d<80) return{label:'Elevated',emoji:'🙂',color:'#a06b10',bg:'rgba(160,107,16,0.1)'};
+  return{label:'Normal',emoji:'🎉',color:'#2f6b3a',bg:'rgba(47,107,58,0.08)'};
+}
+
+function setNow(){const n=new Date();document.getElementById('ts').value=new Date(n-n.getTimezoneOffset()*60000).toISOString().slice(0,16);}
+
+function updateLive(){
+  const s=parseInt(document.getElementById('sys').value);
+  const d=parseInt(document.getElementById('dia').value);
+  const p=document.getElementById('pulse').value;
+  const el=document.getElementById('livePreview');
+  if(!isNaN(s)&&!isNaN(d)&&s>0&&d>0){
+    el.style.display='block';
+    document.getElementById('liveNums').innerHTML=`${s} <span>/</span> ${d}`;
+    document.getElementById('livePulse').textContent=p?`♥  ${p} bpm`:'';
+    const c=classify(s,d);
+    document.getElementById('liveCls').innerHTML=`<span class="cls-pill" style="background:${c.bg};color:${c.color}">${c.label}</span>`;
+  }else{el.style.display='none';}
+}
+
+function getTrend(currentReading){
+  const ago7=new Date();ago7.setDate(ago7.getDate()-7);
+  // Exclude the current reading (by id) from the 7-day average — compare against prior readings only
+  const prev=readings.filter(r=>r.id!==currentReading.id&&new Date(r.ts)>=ago7);
+  const count=readings.filter(r=>new Date(r.ts)>=ago7).length; // includes current
+  if(!prev.length)return{avg7sys:null,avg7dia:null,count,sysTrend:null,diaTrend:null};
+  const avg7sys=Math.round(prev.reduce((a,r)=>a+r.sys,0)/prev.length);
+  const avg7dia=Math.round(prev.reduce((a,r)=>a+r.dia,0)/prev.length);
+  const sysDiff=currentReading.sys-avg7sys;
+  const diaDiff=currentReading.dia-avg7dia;
+  const sysTrend=Math.abs(sysDiff)<3?'stable':sysDiff<0?'improving':'worsening';
+  const diaTrend=Math.abs(diaDiff)<3?'stable':diaDiff<0?'improving':'worsening';
+  return{avg7sys,avg7dia,count,sysTrend,diaTrend,sysDiff,diaDiff};
+}
+
+function trendArrow(trend,diff){
+  if(trend==='stable')return`<span style="color:var(--muted)">→ stable</span>`;
+  if(trend==='improving')return`<span style="color:var(--normal)">↓ ${Math.abs(diff)} better</span>`;
+  return`<span style="color:var(--stage1)">↑ ${Math.abs(diff)} higher</span>`;
+}
+
+async function addReading(){
+  const s=parseInt(document.getElementById('sys').value);
+  const d=parseInt(document.getElementById('dia').value);
+  const p=parseInt(document.getElementById('pulse').value)||null;
+  const ts=document.getElementById('ts').value;
+  const arm=document.getElementById('arm').value;
+  const pos=document.getElementById('pos').value;
+  const notes=document.getElementById('notes').value.trim();
+  if(!s||!d||s<60||d<40){alert('Please enter valid systolic and diastolic values.');return;}
+  if(!ts){alert('Please set a date and time.');return;}
+  const r={id:Date.now(),sys:s,dia:d,pulse:p,ts,arm,pos,notes};
+  readings.unshift(r);
+  readings.sort((a,b)=>new Date(b.ts)-new Date(a.ts));
+  saveR();render();
+
+  if(cfg.sheetsUrl){setSS('go','Syncing…');const ok=await sync(r);setSS(ok?'ok':'err',ok?'Synced to Google Sheets':'Sync failed — check Settings');setTimeout(()=>setSS('',''),5000);}
+
+  showFeedback(r);
+
+  ['sys','dia','pulse','notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('livePreview').style.display='none';
+  setNow();
+}
+
+function showFeedback(r){
+  const cls=classify(r.sys,r.dia);
+  const trend=getTrend(r);
+
+  // Populate modal
+  document.getElementById('modalEmoji').textContent=cls.emoji;
+  document.getElementById('modalReading').innerHTML=`${r.sys} <span>/</span> ${r.dia}`;
+  document.getElementById('modalPulse').textContent=r.pulse?`♥  ${r.pulse} bpm`:'';
+  document.getElementById('modalStage').textContent=cls.label;
+  document.getElementById('modalStage').style.background=cls.bg;
+  document.getElementById('modalStage').style.color=cls.color;
+
+  // Trend strip
+  if(trend.avg7sys!==null){
+    document.getElementById('t7sys').textContent=trend.avg7sys;
+    document.getElementById('t7dia').textContent=trend.avg7dia;
+    document.getElementById('t7sysArr').innerHTML=trendArrow(trend.sysTrend,trend.sysDiff);
+    document.getElementById('t7diaArr').innerHTML=trendArrow(trend.diaTrend,trend.diaDiff);
+  }else{
+    document.getElementById('t7sys').textContent='—';
+    document.getElementById('t7dia').textContent='—';
+    document.getElementById('t7sysArr').textContent='first reading!';
+    document.getElementById('t7diaArr').textContent='';
+  }
+  document.getElementById('t7count').textContent=trend.count;
+
+  // Show modal with loading state
+  const msgEl=document.getElementById('modalMsg');
+  msgEl.className='modal-message loading';
+  msgEl.innerHTML='Thinking of something witty<span class="loading-dots"></span>';
+  document.getElementById('modalOverlay').classList.add('show');
+
+  // Call Claude API for witty message
+  generateFeedback(r,cls,trend).then(msg=>{
+    msgEl.className='modal-message';
+    msgEl.textContent=msg;
+  });
+}
+
+async function generateFeedback(r,cls,trend){
+  let trendDesc='This is the first reading in the tracker.';
+  if(trend.avg7sys!==null){
+    const sDir=trend.sysTrend==='stable'?'holding steady':trend.sysTrend==='improving'?`down ${Math.abs(trend.sysDiff)} points`:`up ${Math.abs(trend.sysDiff)} points`;
+    const dDir=trend.diaTrend==='stable'?'holding steady':trend.diaTrend==='improving'?`down ${Math.abs(trend.diaDiff)} points`:`up ${Math.abs(trend.diaDiff)} points`;
+    trendDesc=`Compared to their 7-day average (${trend.avg7sys}/${trend.avg7dia}), systolic is ${sDir} and diastolic is ${dDir}. Total readings this week: ${trend.count}.`;
+  }
+
+  const prompt=`You are a warm, witty, and encouraging health companion reviewing someone's blood pressure reading. Be like a clever British friend — upbeat, gently funny, human. Keep it to 2 sentences maximum. Do NOT give medical advice or recommendations. Just acknowledge the reading with personality and encouragement.
+
+Reading: ${r.sys}/${r.dia} mmHg${r.pulse?`, pulse ${r.pulse} bpm`:''}
+Classification: ${cls.label}
+Trend context: ${trendDesc}
+
+Write 2 sentences: one fun/warm acknowledgment of the reading, one encouraging comment about the trend or consistency. Vary your style each time — sometimes self-deprecating, sometimes celebratory, sometimes dry wit.`;
+
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+    const data=await res.json();
+    return data.content?.[0]?.text||fallbackMsg(cls,trend);
+  }catch(e){
+    return fallbackMsg(cls,trend);
+  }
+}
+
+function fallbackMsg(cls,trend){
+  const normals=["Your heart is doing its quiet, dependable best — much like a very reliable kettle.","Right in the sweet spot. Whatever you're doing, keep doing it — including the biscuits.","Your cardiovascular system is basically showing off at this point."];
+  const elevated=["Slightly elevated, but you're clearly aware of it — awareness is half the battle.","A nudge above ideal, but nothing that a bit of breathing and less checking your work email can't help."];
+  const stage1=["A little high, but you're here, tracking it, which already makes you ahead of the game.","Stage 1 territory — your heart is asking nicely for a bit more calm in your life."];
+  const high=["Let's keep a close eye on this one. The fact you're measuring is exactly the right move.","Higher than ideal — worth a chat with your GP, but you're already doing the responsible thing by logging it."];
+  if(cls.label==='Normal')return normals[Math.floor(Math.random()*normals.length)];
+  if(cls.label==='Elevated')return elevated[Math.floor(Math.random()*elevated.length)];
+  if(cls.label==='Stage 1 HTN')return stage1[Math.floor(Math.random()*stage1.length)];
+  return high[Math.floor(Math.random()*high.length)];
+}
+
+function closeModal(){document.getElementById('modalOverlay').classList.remove('show');}
+// Close on overlay click
+document.getElementById('modalOverlay').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+function setSS(state,msg){const el=document.getElementById('syncStatus');el.innerHTML=msg?`<span class="sdot ${state}"></span>${msg}`:'';};
+
+async function sync(r){
+  const d=new Date(r.ts);const c=classify(r.sys,r.dia);
+  const payload={name:cfg.displayName||'',date:d.toLocaleDateString('en-GB'),time:d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),sys:r.sys,dia:r.dia,pulse:r.pulse??'',arm:r.arm,position:r.pos,classification:c.label,notes:r.notes||''};
+  try{const res=await fetch(cfg.sheetsUrl,{method:'POST',body:JSON.stringify(payload)});const j=await res.json();return j.ok===true;}catch(e){return false;}
+}
+
+function saveSheetsUrl(){cfg.sheetsUrl=document.getElementById('sheetsUrl').value.trim();saveC();}
+function saveDispName(){cfg.displayName=document.getElementById('dispName').value.trim();saveC();}
+function saveRefs(){cfg.refSys=parseInt(document.getElementById('refSys').value)||129;cfg.refDia=parseInt(document.getElementById('refDia').value)||85;cfg.refPulse=parseInt(document.getElementById('refPulse').value)||75;saveC();renderChart();}
+
+async function testConn(){
+  const url=document.getElementById('sheetsUrl').value.trim();
+  if(!url){alert('Please enter a URL first.');return;}
+  const el=document.getElementById('testStatus');
+  el.innerHTML='<span class="sdot go"></span>Testing…';
+  try{const res=await fetch(url,{method:'POST',body:JSON.stringify({name:'TEST',date:'test',time:'test',sys:0,dia:0,pulse:'',arm:'',position:'',classification:'Connection test',notes:'Please delete this row'})});const j=await res.json();el.innerHTML=j.ok?'<span class="sdot ok"></span>Connected — delete the test row from your sheet.':'<span class="sdot err"></span>Script returned an error — check Apps Script logs.';}catch(e){el.innerHTML='<span class="sdot err"></span>Could not reach the URL. Confirm access is set to "Anyone".';}
+}
+
+function fmtDate(ts){const d=new Date(ts);return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
+
+function render(){renderHero();renderStats();renderChart();renderHistory();}
+
+function renderHero(){const el=document.getElementById('heroReading');if(readings.length){const r=readings[0];el.textContent=`${r.sys} / ${r.dia}`;}else{el.textContent='—';}}
+
+function renderStats(){
+  const ago=new Date();ago.setDate(ago.getDate()-30);
+  const rec=readings.filter(r=>new Date(r.ts)>=ago);
+  if(!rec.length){['avgSys','avgDia','avgPulse'].forEach(id=>document.getElementById(id).textContent='—');}
+  else{
+    document.getElementById('avgSys').textContent=Math.round(rec.reduce((a,r)=>a+r.sys,0)/rec.length);
+    document.getElementById('avgDia').textContent=Math.round(rec.reduce((a,r)=>a+r.dia,0)/rec.length);
+    const wp=rec.filter(r=>r.pulse);
+    document.getElementById('avgPulse').textContent=wp.length?Math.round(wp.reduce((a,r)=>a+r.pulse,0)/wp.length):'—';
+  }
+  document.getElementById('totalCt').textContent=readings.length;
+}
+
+function renderChart(){
+  const ctx=document.getElementById('bpChart').getContext('2d');
+  const data=[...readings].reverse().slice(-30);
+  if(chart){chart.destroy();chart=null;}
+  if(!data.length)return;
+  const rs=cfg.refSys||129,rd=cfg.refDia||85;
+  chart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:data.map(r=>fmtDate(r.ts)),
+      datasets:[
+        {label:'Systolic',data:data.map(r=>r.sys),borderColor:'#3d7535',tension:0.35,pointRadius:4,pointBackgroundColor:'#fff',pointBorderColor:'#3d7535',pointBorderWidth:2,pointHoverRadius:7,borderWidth:2.5,fill:false},
+        {label:'Diastolic',data:data.map(r=>r.dia),borderColor:'#c4501c',tension:0.35,pointRadius:4,pointBackgroundColor:'#fff',pointBorderColor:'#c4501c',pointBorderWidth:2,pointHoverRadius:7,borderWidth:2.5,fill:false},
+        {label:`Target Sys (${rs})`,data:data.map(()=>rs),borderColor:'rgba(61,117,53,0.3)',borderDash:[6,4],borderWidth:1.5,pointRadius:0,fill:false},
+        {label:`Target Dia (${rd})`,data:data.map(()=>rd),borderColor:'rgba(196,80,28,0.3)',borderDash:[6,4],borderWidth:1.5,pointRadius:0,fill:false}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{color:'#7a7163',font:{family:"'Nunito Sans',sans-serif",size:11,weight:'600'},boxWidth:14,padding:16}},
+        tooltip:{backgroundColor:'#1c1a16',borderColor:'#3d3830',borderWidth:1,titleColor:'#faf7f2',bodyColor:'#a09880',titleFont:{family:"'Playfair Display',serif",weight:'700'},bodyFont:{family:"'Nunito Sans',sans-serif"},padding:12,cornerRadius:10}
+      },
+      scales:{
+        x:{ticks:{color:'#7a7163',font:{family:"'Nunito Sans',sans-serif",size:10,weight:'600'},maxTicksLimit:8,maxRotation:30},grid:{color:'#f0ece4'},border:{display:false}},
+        y:{ticks:{color:'#7a7163',font:{family:"'Nunito Sans',sans-serif",size:11}},grid:{color:'#f0ece4'},border:{display:false},min:50}
+      }
+    }
+  });
+}
+
+function renderHistory(){
+  const tb=document.getElementById('histBody');
+  if(!readings.length){tb.innerHTML='<tr><td colspan="7" class="empty">No readings yet. Add your first above.</td></tr>';return;}
+  tb.innerHTML=readings.map(r=>{
+    const c=classify(r.sys,r.dia);
+    return`<tr>
+      <td style="color:var(--muted);white-space:nowrap;font-size:0.8rem">${fmtDate(r.ts)}</td>
+      <td class="td-bp">${r.sys} / ${r.dia}</td>
+      <td style="font-weight:600">${r.pulse??'—'}</td>
+      <td><span class="badge" style="background:${c.bg};color:${c.color}">${c.label}</span></td>
+      <td style="color:var(--muted);font-size:0.78rem">${r.arm}</td>
+      <td style="color:var(--muted);font-size:0.75rem;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.notes||''}">${r.notes||'—'}</td>
+      <td><button class="btn-del" onclick="delR(${r.id})">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function delR(id){if(!confirm('Delete this reading?'))return;readings=readings.filter(r=>r.id!==id);saveR();render();}
+
+function exportCSV(){
+  if(!readings.length){alert('No readings to export.');return;}
+  const hdr='Date,Time,Systolic,Diastolic,Pulse,Arm,Position,Classification,Notes';
+  const rows=readings.map(r=>{const d=new Date(r.ts);const c=classify(r.sys,r.dia).label;return[d.toLocaleDateString('en-GB'),d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),r.sys,r.dia,r.pulse??'',r.arm,r.pos,c,`"${(r.notes||'').replace(/"/g,'""')}"`].join(',');});
+  const blob=new Blob([[hdr,...rows].join('\n')],{type:'text/csv'});
+  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(blob),download:'blood_pressure.csv'});
+  a.click();URL.revokeObjectURL(a.href);
+}
+
+function importCSV(){document.getElementById('csvFile').click();}
+function handleImport(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const lines=ev.target.result.trim().split('\n');let imported=0;
+    for(let i=1;i<lines.length;i++){
+      const cols=lines[i].split(',');if(cols.length<4)continue;
+      try{const dp=cols[0].trim().split('/'),tp=(cols[1]||'00:00').trim().split(':');
+        const d=new Date(dp[2],dp[1]-1,dp[0],tp[0]||0,tp[1]||0);
+        const s=parseInt(cols[2]),di=parseInt(cols[3]);if(isNaN(s)||isNaN(di))continue;
+        readings.push({id:d.getTime()+i,sys:s,dia:di,pulse:parseInt(cols[4])||null,ts:d.toISOString().slice(0,16),arm:cols[5]?.trim()||'Left',pos:cols[6]?.trim()||'Sitting',notes:(cols[8]||'').replace(/^"|"$/g,'').trim()});imported++;}catch(err){}
+    }
+    readings.sort((a,b)=>new Date(b.ts)-new Date(a.ts));saveR();render();
+    alert(`Imported ${imported} reading${imported!==1?'s':''}.`);
+  };
+  reader.readAsText(file);e.target.value='';
+}
+
+function clearAll(){if(!confirm('Delete ALL readings permanently?'))return;readings=[];saveR();render();}
+
+function copyBlock(id){
+  const el=document.getElementById(id);const btn=el.querySelector('.copy-btn');
+  navigator.clipboard.writeText(el.textContent.replace(btn.textContent,'').trim())
+    .then(()=>{btn.textContent='Copied!';setTimeout(()=>{btn.textContent='Copy';},2000);});
+}
+
+function initSettings(){
+  document.getElementById('sheetsUrl').value=cfg.sheetsUrl||'';
+  document.getElementById('dispName').value=cfg.displayName||'';
+  document.getElementById('refSys').value=cfg.refSys||129;
+  document.getElementById('refDia').value=cfg.refDia||85;
+  document.getElementById('refPulse').value=cfg.refPulse||75;
+}
+
+setNow();initSettings();render();
+</script>
+</body>
+</html>
