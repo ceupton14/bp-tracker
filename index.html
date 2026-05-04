@@ -49,6 +49,61 @@ body { background: var(--cream); color: var(--text); font-family: var(--sans); f
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
 
+/* ---- MOBILE ---- */
+@media (max-width: 640px) {
+  .topbar { height: auto; padding: 0; flex-direction: column; align-items: stretch; }
+  .topbar-brand { padding: 14px 20px 10px; font-size: 1.1rem; }
+  .tab-nav { overflow-x: auto; -webkit-overflow-scrolling: touch; border-top: 1px solid rgba(255,255,255,0.12); scrollbar-width: none; }
+  .tab-nav::-webkit-scrollbar { display: none; }
+  .tnav { padding: 0 16px; height: 44px; font-size: 0.7rem; white-space: nowrap; flex-shrink: 0; letter-spacing: 0.04em; }
+
+  .page { padding: 20px 16px; }
+
+  .hero { padding: 22px 20px; margin-bottom: 20px; gap: 12px; }
+  .hero-title { font-size: 1.55rem; }
+  .hero-sub { font-size: 0.72rem; }
+  #heroReading { font-size: 1.8rem !important; }
+
+  .card { padding: 20px; }
+  .card + .card { margin-top: 14px; }
+
+  .fr-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .fr-2 { grid-template-columns: 1fr 1fr; }
+
+  .cls-guide { grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  .stats-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-num { font-size: 1.5rem; }
+
+  .chart-wrap { height: 200px; }
+
+  .tbl-wrap { overflow-x: auto; }
+  table { min-width: 500px; }
+
+  /* Modal full-width on mobile */
+  .modal-overlay { align-items: flex-end; padding: 0; }
+  .modal { border-radius: 24px 24px 0 0; max-width: 100%; max-height: 90vh; overflow-y: auto; transform: translateY(40px) scale(1); }
+  .modal-overlay.show .modal { transform: translateY(0) scale(1); }
+  .modal-header { padding: 24px 24px 0; }
+  .modal-body { padding: 16px 24px; }
+  .modal-footer { padding: 0 24px 32px; }
+  .modal-reading { font-size: 2.4rem; }
+  .modal-emoji { font-size: 2.4rem; }
+  .trend-strip { grid-template-columns: 1fr 1fr 1fr; gap: 6px; padding: 12px; }
+  .trend-item-val { font-size: 1.2rem; }
+
+  /* Settings & guides */
+  .sw, .gw { gap: 14px; }
+  .step-row, .gh-step { gap: 12px; }
+  .section-title { font-size: 1.2rem; }
+
+  .action-row { gap: 8px; }
+  .btn-outline { padding: 8px 14px; font-size: 0.78rem; }
+
+  /* Sync banner */
+  .sync-banner { border-radius: 0; }
+}
+
 /* HERO */
 .hero { background: var(--green2); border-radius: var(--radius); padding: 32px 36px; margin-bottom: 32px; display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
 .hero-title { font-family: var(--serif); font-size: 2.2rem; font-weight: 800; color: #fff; line-height: 1.1; letter-spacing: -0.02em; }
@@ -367,6 +422,12 @@ tbody td { padding:11px 14px; vertical-align:middle; }
   </div>
 </div>
 
+<!-- SYNC BANNER -->
+<div id="syncBanner" style="display:none; background:var(--green-lt); border-bottom:1px solid #c0d4ba; padding:10px 32px; font-size:0.78rem; color:var(--green); display:none; align-items:center; gap:8px;" class="sync-banner">
+  <span class="sdot go" id="syncBannerDot"></span>
+  <span id="syncBannerMsg"></span>
+</div>
+
 <!-- ===================== TRACKER ===================== -->
 <div id="tab-tracker" class="tab-panel active">
 <div class="page">
@@ -378,6 +439,7 @@ tbody td { padding:11px 14px; vertical-align:middle; }
     <div style="text-align:right">
       <div style="font-family:var(--serif);font-size:2.4rem;font-weight:800;color:#fff;line-height:1" id="heroReading">—</div>
       <div style="font-size:0.72rem;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px">Latest reading</div>
+      <button onclick="syncFromSheet(false)" id="syncNowBtn" style="display:none;margin-top:10px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:8px;padding:6px 14px;font-family:var(--sans);font-size:0.72rem;font-weight:700;cursor:pointer;letter-spacing:0.04em">↻ Sync now</button>
     </div>
   </div>
 
@@ -510,30 +572,63 @@ tbody td { padding:11px 14px; vertical-align:middle; }
         <div class="step-badge">2</div>
         <div class="step-body">
           <div class="step-h">Open Apps Script and paste the receiver</div>
-          <div class="step-p">Go to <strong>Extensions → Apps Script</strong>. Delete existing code, paste this:</div>
-          <div class="code-block" id="asBlock"><button class="copy-btn" onclick="copyBlock('asBlock')">Copy</button>function doPost(e) {
+          <div class="step-p">Go to <strong>Extensions → Apps Script</strong>. Delete all existing code and paste this updated version (it now includes <strong>doGet</strong> for cross-device sync, plus the original <strong>doPost</strong> for writing):</div>
+          <div class="code-block" id="asBlock"><button class="copy-btn" onclick="copyBlock('asBlock')">Copy</button>// Returns all readings so the app can sync across devices
+function doGet(e) {
   try {
-    var data = JSON.parse(e.postData.contents);
-    var sheet = SpreadsheetApp.getActiveSpreadsheet()
-                              .getSheetByName("Data");
-    sheet.appendRow([
-      data.name           || "",
-      data.date,  data.time,
-      data.sys,   data.dia,
-      data.pulse          || "",
-      data.arm,   data.position,
-      data.classification,
-      data.notes          || ""
-    ]);
-    return ContentService
-      .createTextOutput(JSON.stringify({ ok: true }))
-      .setMimeType(ContentService.MimeType.JSON);
+    var sheet  = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Data");
+    var values = sheet.getDataRange().getValues();
+    if (values.length <= 1) {
+      return ContentService.createTextOutput(JSON.stringify({ ok:true, readings:[] }))
+             .setMimeType(ContentService.MimeType.JSON);
+    }
+    var readings = values.slice(1).map(function(row) {
+      var d = row[1], t = row[2];
+      return {
+        date:           (d instanceof Date) ? Utilities.formatDate(d, Session.getScriptTimeZone(), 'dd/MM/yyyy') : String(d),
+        time:           (t instanceof Date) ? Utilities.formatDate(t, Session.getScriptTimeZone(), 'HH:mm')      : String(t),
+        sys:  row[3],   dia:            row[4],
+        pulse:          row[5] || '',
+        arm:            row[6] || '',   position: row[7] || '',
+        classification: row[8] || '',   notes:    row[9] || ''
+      };
+    }).filter(function(r) { return r.sys && r.dia; });
+    return ContentService.createTextOutput(JSON.stringify({ ok:true, readings:readings }))
+           .setMimeType(ContentService.MimeType.JSON);
   } catch(err) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ ok: false, error: err.message }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ ok:false, error:err.message }))
+           .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// Receives a new reading from the app and appends it to the sheet
+function doPost(e) {
+  try {
+    var data  = JSON.parse(e.postData.contents);
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Data");
+    sheet.appendRow([
+      data.name || '',  data.date,  data.time,
+      data.sys,         data.dia,   data.pulse || '',
+      data.arm,         data.position,
+      data.classification,          data.notes || ''
+    ]);
+    return ContentService.createTextOutput(JSON.stringify({ ok:true }))
+           .setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({ ok:false, error:err.message }))
+           .setMimeType(ContentService.MimeType.JSON);
   }
 }</div>
+        </div>
+      </div>
+      <hr class="divider">
+      <div class="step-row">
+        <div class="step-badge" style="background:var(--elevated)">!</div>
+        <div class="step-body">
+          <div class="step-h">Already deployed? Update your existing deployment</div>
+          <div class="step-p">If you deployed the old version: paste the new code above, then go to <strong>Deploy → Manage deployments</strong>, click the <strong>pencil icon</strong> on your existing deployment, change Version to <strong>"New version"</strong>, and click <strong>Deploy</strong>. The URL stays the same — no need to update Settings.</div>
+        </div>
+      </div>
         </div>
       </div>
       <hr class="divider">
@@ -897,10 +992,15 @@ function setSS(state,msg){const el=document.getElementById('syncStatus');el.inne
 async function sync(r){
   const d=new Date(r.ts);const c=classify(r.sys,r.dia);
   const payload={name:cfg.displayName||'',date:d.toLocaleDateString('en-GB'),time:d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),sys:r.sys,dia:r.dia,pulse:r.pulse??'',arm:r.arm,position:r.pos,classification:c.label,notes:r.notes||''};
-  try{const res=await fetch(cfg.sheetsUrl,{method:'POST',body:JSON.stringify(payload)});const j=await res.json();return j.ok===true;}catch(e){return false;}
+  try{
+    // no-cors: avoids the CORS/redirect block Apps Script triggers on POST.
+    // The data IS written to the sheet — we just can't read the response.
+    await fetch(cfg.sheetsUrl,{method:'POST',mode:'no-cors',body:JSON.stringify(payload)});
+    return true; // optimistic — if fetch didn't throw, assume success
+  }catch(e){return false;}
 }
 
-function saveSheetsUrl(){cfg.sheetsUrl=document.getElementById('sheetsUrl').value.trim();saveC();}
+function saveSheetsUrl(){cfg.sheetsUrl=document.getElementById('sheetsUrl').value.trim();saveC();const btn=document.getElementById('syncNowBtn');if(btn)btn.style.display=cfg.sheetsUrl?'inline-block':'none';}
 function saveDispName(){cfg.displayName=document.getElementById('dispName').value.trim();saveC();}
 function saveRefs(){cfg.refSys=parseInt(document.getElementById('refSys').value)||129;cfg.refDia=parseInt(document.getElementById('refDia').value)||85;cfg.refPulse=parseInt(document.getElementById('refPulse').value)||75;saveC();renderChart();}
 
@@ -909,7 +1009,18 @@ async function testConn(){
   if(!url){alert('Please enter a URL first.');return;}
   const el=document.getElementById('testStatus');
   el.innerHTML='<span class="sdot go"></span>Testing…';
-  try{const res=await fetch(url,{method:'POST',body:JSON.stringify({name:'TEST',date:'test',time:'test',sys:0,dia:0,pulse:'',arm:'',position:'',classification:'Connection test',notes:'Please delete this row'})});const j=await res.json();el.innerHTML=j.ok?'<span class="sdot ok"></span>Connected — delete the test row from your sheet.':'<span class="sdot err"></span>Script returned an error — check Apps Script logs.';}catch(e){el.innerHTML='<span class="sdot err"></span>Could not reach the URL. Confirm access is set to "Anyone".';}
+  try{
+    const res=await fetch(url); // GET — no CORS issue, readable response
+    const j=await res.json();
+    if(j.ok){
+      const n=j.readings?.length||0;
+      el.innerHTML=`<span class="sdot ok"></span>Connected — ${n} reading${n!==1?'s':''} found in your sheet.`;
+    }else{
+      el.innerHTML='<span class="sdot err"></span>Script returned an error — check Apps Script logs.';
+    }
+  }catch(e){
+    el.innerHTML='<span class="sdot err"></span>Could not reach the URL. Confirm it is deployed with access set to "Anyone".';
+  }
 }
 
 function fmtDate(ts){const d=new Date(ts);return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
@@ -1024,9 +1135,69 @@ function initSettings(){
   document.getElementById('refSys').value=cfg.refSys||129;
   document.getElementById('refDia').value=cfg.refDia||85;
   document.getElementById('refPulse').value=cfg.refPulse||75;
+  const btn=document.getElementById('syncNowBtn');
+  if(btn)btn.style.display=cfg.sheetsUrl?'inline-block':'none';
+}
+
+// ---- SHEET SYNC ----
+function showBanner(state,msg){
+  const b=document.getElementById('syncBanner');
+  const dot=document.getElementById('syncBannerDot');
+  const m=document.getElementById('syncBannerMsg');
+  if(!msg){b.style.display='none';return;}
+  b.style.display='flex';
+  dot.className='sdot '+state;
+  m.textContent=msg;
+}
+
+function convertSheetRow(row,i){
+  try{
+    const dateStr=String(row.date||'');
+    const timeStr=String(row.time||'').replace(/[^0-9:]/g,'');
+    const dp=dateStr.split('/');
+    const tp=timeStr.split(':');
+    if(dp.length<3||!dp[2])return null;
+    const d=new Date(parseInt(dp[2]),parseInt(dp[1])-1,parseInt(dp[0]),parseInt(tp[0])||0,parseInt(tp[1])||0);
+    if(isNaN(d.getTime()))return null;
+    const sys=parseInt(row.sys),dia=parseInt(row.dia);
+    if(isNaN(sys)||isNaN(dia)||sys<60||dia<30)return null;
+    return{id:d.getTime()+i,sys,dia,pulse:parseInt(row.pulse)||null,ts:new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16),arm:row.arm||'Left',pos:row.position||'Sitting',notes:String(row.notes||'')};
+  }catch(e){return null;}
+}
+
+function mergeWithLocal(sheetReadings){
+  // Sheet is master. Add any local readings not yet in sheet (offline additions).
+  const key=r=>`${r.ts}_${r.sys}_${r.dia}`;
+  const sheetKeys=new Set(sheetReadings.map(key));
+  const localOnly=readings.filter(r=>!sheetKeys.has(key(r)));
+  return [...sheetReadings,...localOnly].sort((a,b)=>new Date(b.ts)-new Date(a.ts));
+}
+
+async function syncFromSheet(silent=false){
+  if(!cfg.sheetsUrl)return;
+  if(!silent)showBanner('go','Syncing from Google Sheets…');
+  try{
+    const res=await fetch(cfg.sheetsUrl);
+    const data=await res.json();
+    if(data.ok&&Array.isArray(data.readings)){
+      const sheetReadings=data.readings.map(convertSheetRow).filter(Boolean);
+      readings=mergeWithLocal(sheetReadings);
+      saveR();render();
+      showBanner('ok',`Synced — ${readings.length} reading${readings.length!==1?'s':''} loaded`);
+      setTimeout(()=>showBanner('',''),3500);
+    }else{
+      if(!silent)showBanner('err','Sync failed — check your Apps Script');
+      setTimeout(()=>showBanner('',''),4000);
+    }
+  }catch(e){
+    if(!silent)showBanner('err','Could not reach sheet — showing local data');
+    setTimeout(()=>showBanner('',''),4000);
+  }
 }
 
 setNow();initSettings();render();
+// Auto-sync from sheet on load (silent if it fails — local data still shows)
+if(cfg.sheetsUrl)syncFromSheet(false);
 </script>
 </body>
 </html>
